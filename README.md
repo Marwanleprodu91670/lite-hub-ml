@@ -7,8 +7,10 @@ local autoPunchEnabled = false
 local autoKillEnabled = false
 local whitelistEnabled = false
 local killTargetEnabled = false
+local spyPlayerEnabled = false
 local selectedWhitelistPlayer = nil
 local selectedTargetPlayer = nil
+local selectedSpyPlayer = nil
 
 -- Function to toggle Auto Punch
 function AutoPunch()
@@ -18,11 +20,10 @@ function AutoPunch()
             local punchTool = player.Backpack:FindFirstChild("Punch") or player.Character:FindFirstChild("Punch")
             
             if punchTool then
-                -- Equip and activate the Punch tool
                 player.Character.Humanoid:EquipTool(punchTool)
                 punchTool:Activate()
             end
-            wait(0.1) -- Adjust delay as needed
+            wait(0.1)
         end
     end)
 end
@@ -33,19 +34,18 @@ function AutoKill()
         while autoKillEnabled do
             local player = game.Players.LocalPlayer
             local character = player.Character or player.CharacterAdded:Wait()
-            local rightHand = character:FindFirstChild("RightHand") -- or use a specific part if needed
+            local rightHand = character:FindFirstChild("RightHand")
 
             if rightHand then
                 for _, target in pairs(game.Players:GetPlayers()) do
                     if target ~= player and target.Character and target.Character:FindFirstChild("Head") then
-                        -- Skip teleporting if whitelist is enabled and the player is selected
                         if not (whitelistEnabled and target.Name == selectedWhitelistPlayer) then
                             target.Character.Head.CFrame = rightHand.CFrame
                         end
                     end
                 end
             end
-            wait(0.1) -- Adjust delay as needed
+            wait(0.1)
         end
     end)
 end
@@ -64,16 +64,36 @@ function KillTarget()
                     targetPlayer.Character.Head.CFrame = rightHand.CFrame
                 end
             end
-            wait(0.1) -- Adjust delay as needed
+            wait(0.1)
         end
     end)
+end
+
+-- Function to toggle Spy Player
+function SpyPlayer()
+    spawn(function()
+        while spyPlayerEnabled do
+            if selectedSpyPlayer then
+                local targetPlayer = game.Players:FindFirstChild(selectedSpyPlayer)
+                if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+                    workspace.CurrentCamera.CameraSubject = targetPlayer.Character.Humanoid
+                end
+            end
+            wait(0.1)
+        end
+    end)
+end
+
+-- Function to reset camera to local player
+function ResetCamera()
+    workspace.CurrentCamera.CameraSubject = game.Players.LocalPlayer.Character.Humanoid
 end
 
 -- Function to refresh player list for dropdown
 local function RefreshPlayerList()
     local players = {}
     for _, player in pairs(game.Players:GetPlayers()) do
-        if player.Name ~= game.Players.LocalPlayer.Name then -- Exclude local player
+        if player.Name ~= game.Players.LocalPlayer.Name then
             table.insert(players, player.Name)
         end
     end
@@ -83,8 +103,13 @@ end
 -- Add "Player" Tab
 local PlayerTab = Window:MakeTab({
     Name = "Player",
-    Icon = "rbxassetid://4483345998", -- Example icon
+    Icon = "rbxassetid://4483345998",
     PremiumOnly = false
+})
+
+-- Kill Farming Section
+PlayerTab:AddSection({
+    Name = "Kill Farming"
 })
 
 -- Auto Punch Toggle
@@ -109,11 +134,6 @@ PlayerTab:AddToggle({
             AutoKill()
         end
     end
-})
-
--- Empty Section
-PlayerTab:AddSection({
-    Name = " "
 })
 
 -- Whitelist Toggle
@@ -162,17 +182,51 @@ PlayerTab:AddDropdown({
     end
 })
 
+-- Add "Spy" Tab
+local SpyTab = Window:MakeTab({
+    Name = "Spy",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Spy Player Toggle
+SpyTab:AddToggle({
+    Name = "Spy Player",
+    Default = false,
+    Callback = function(value)
+        spyPlayerEnabled = value
+        if value then
+            SpyPlayer()
+        else
+            ResetCamera()
+        end
+    end
+})
+
+-- Dropdown for Spy Player Selection
+SpyTab:AddDropdown({
+    Name = "Select Spy Player",
+    Default = "",
+    Options = RefreshPlayerList(),
+    Callback = function(value)
+        selectedSpyPlayer = value
+    end
+})
+
 -- Update dropdown options whenever players change
 game.Players.PlayerAdded:Connect(function()
     PlayerTab:UpdateDropdown("Select Player to Whitelist", RefreshPlayerList())
     PlayerTab:UpdateDropdown("Select Target Player", RefreshPlayerList())
+    SpyTab:UpdateDropdown("Select Spy Player", RefreshPlayerList())
 end)
 
 game.Players.PlayerRemoving:Connect(function()
     PlayerTab:UpdateDropdown("Select Player to Whitelist", RefreshPlayerList())
     PlayerTab:UpdateDropdown("Select Target Player", RefreshPlayerList())
+    SpyTab:UpdateDropdown("Select Spy Player", RefreshPlayerList())
 end)
 
 -- Initialize Orion Library
 OrionLib:Init()
+
 
