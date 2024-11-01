@@ -1,7 +1,7 @@
 -- Load Orion Library with error handling
 local function loadOrionLibrary()
     local success, response = pcall(function()
-        return game.HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source')
+        return game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source')
     end)
 
     if success and response then
@@ -12,7 +12,12 @@ local function loadOrionLibrary()
 end
 
 local OrionLib = loadOrionLibrary()
-local Window = OrionLib:MakeWindow({Name = "Lite Hub Muscle Legends", HidePremium = false, SaveConfig = true, IntroEnabled = false})
+local Window = OrionLib:MakeWindow({
+    Name = "Lite Hub Muscle Legends",
+    HidePremium = false,
+    SaveConfig = true,
+    IntroEnabled = false
+})
 
 -- Create the Player Tab
 local Tab = Window:MakeTab({
@@ -28,70 +33,59 @@ local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
-local punchLoop
-local equipLoop
-local animationSpeedLoop
-local killLoop
+local punchLoop, animationSpeedLoop, killLoop
 local whitelistedPlayers = {}
-local whitelistDropdown
-local selectPlayerDropdown
-local selectedPlayer = nil  -- Store the selected player for killing
+local whitelistDropdown, selectPlayerDropdown
+local selectedPlayer = nil -- Store the selected player for killing
 
--- Function to update whitelist dropdown options
-local function updateWhitelistDropdown()
+-- Function to refresh dropdown options
+local function updateDropdown(dropdown, excludeLocalPlayer)
     local options = {}
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
+        if not (excludeLocalPlayer and player == LocalPlayer) then
             table.insert(options, player.Name)
         end
     end
-    whitelistDropdown:Refresh(options, true)
+    dropdown:Refresh(options, true)
 end
 
--- Function to update player dropdown options for auto kill
-local function updateSelectPlayerDropdown()
-    local options = {}
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            table.insert(options, player.Name)
-        end
+-- Initialize the whitelist dropdown
+whitelistDropdown = Tab:AddDropdown({
+    Name = "Whitelist",
+    Default = {},
+    Multi = true,
+    Options = {},
+    Callback = function(selected)
+        whitelistedPlayers = selected
     end
-    selectPlayerDropdown:Refresh(options, true)
-end
-
--- Add Punching Section
-Tab:AddSection({
-    Name = "Punching"
 })
 
--- Add Auto Punch Toggle to use the existing Punch tool infinitely
+-- Add Punching Section
+Tab:AddSection({Name = "Punching"})
+
+-- Add Auto Punch Toggle
 Tab:AddToggle({
     Name = "Auto Punch",
     Default = false,
     Callback = function(Value)
         if Value then
-            -- Equip tool if not already equipped
             local punchTool = Backpack:FindFirstChild("Punch") or Character:FindFirstChild("Punch")
             if punchTool and punchTool.Parent ~= Character then
                 LocalPlayer.Character.Humanoid:EquipTool(punchTool)
             end
             
-            -- Activate Punch infinitely every 0.1 seconds
             punchLoop = RunService.Heartbeat:Connect(function()
                 local punchTool = Character:FindFirstChild("Punch")
                 if punchTool and punchTool.Parent == Character then
-                    punchTool:Activate() -- Activate the Punch tool
+                    punchTool:Activate()
                 end
-                wait(0.1) -- Wait for 0.1 seconds between each punch
+                wait(0.1)
             end)
         else
-            -- Stop the punch loop when the toggle is off
             if punchLoop then
                 punchLoop:Disconnect()
-                punchLoop = nil -- Clear reference
+                punchLoop = nil
             end
-            
-            -- Deactivate the punch tool if it exists
             local punchTool = Character:FindFirstChild("Punch")
             if punchTool then
                 punchTool:Deactivate()
@@ -100,32 +94,27 @@ Tab:AddToggle({
     end
 })
 
--- Add Fast Auto Punch Toggle to speed up the punch animation
+-- Add Fast Auto Punch Toggle
 Tab:AddToggle({
     Name = "Fast Auto Punch",
     Default = false,
     Callback = function(Value)
         if Value then
-            -- Speed up the punch animation
             animationSpeedLoop = RunService.Heartbeat:Connect(function()
-                local punchTool = Character:FindFirstChild("Punch")
-                if punchTool then
-                    for _, animTrack in pairs(LocalPlayer.Character.Humanoid:GetPlayingAnimationTracks()) do
-                        if animTrack.Name == "PunchAnimation" then  -- Replace with the correct animation name
-                            animTrack:AdjustSpeed(2)  -- Increase the speed to 2x (or adjust as needed)
-                        end
+                for _, animTrack in pairs(LocalPlayer.Character.Humanoid:GetPlayingAnimationTracks()) do
+                    if animTrack.Name == "PunchAnimation" then
+                        animTrack:AdjustSpeed(2)
                     end
                 end
             end)
         else
-            -- Reset the animation speed when the toggle is off
             if animationSpeedLoop then
                 animationSpeedLoop:Disconnect()
-                animationSpeedLoop = nil -- Clear reference
+                animationSpeedLoop = nil
             end
             for _, animTrack in pairs(LocalPlayer.Character.Humanoid:GetPlayingAnimationTracks()) do
-                if animTrack.Name == "PunchAnimation" then  -- Replace with the correct animation name
-                    animTrack:AdjustSpeed(1)  -- Reset speed to normal
+                if animTrack.Name == "PunchAnimation" then
+                    animTrack:AdjustSpeed(1)
                 end
             end
         end
@@ -133,33 +122,7 @@ Tab:AddToggle({
 })
 
 -- Add Killing Section
-Tab:AddSection({
-    Name = "Killing"
-})
-
--- Add Whitelist Dropdown
-whitelistDropdown = Tab:AddDropdown({
-    Name = "Whitelist",
-    Default = {},
-    Multi = true,  -- Allow multiple selections
-    Options = {},
-    Callback = function(selected)
-        whitelistedPlayers = selected  -- Update the list of whitelisted players
-    end
-})
-
--- Initialize the whitelist dropdown with current players
-updateWhitelistDropdown()
-
--- Update dropdown when players join or leave
-Players.PlayerAdded:Connect(function()
-    updateWhitelistDropdown()
-    updateSelectPlayerDropdown()
-end)
-Players.PlayerRemoving:Connect(function()
-    updateWhitelistDropdown()
-    updateSelectPlayerDropdown()
-end)
+Tab:AddSection({Name = "Killing"})
 
 -- Add Auto Kill Toggle with Whitelist Check
 Tab:AddToggle({
@@ -167,7 +130,6 @@ Tab:AddToggle({
     Default = false,
     Callback = function(Value)
         if Value then
-            -- Start Auto Kill loop
             killLoop = RunService.Heartbeat:Connect(function()
                 for _, player in pairs(Players:GetPlayers()) do
                     if player ~= LocalPlayer and not table.find(whitelistedPlayers, player.Name) then
@@ -175,27 +137,22 @@ Tab:AddToggle({
                             local head = player.Character.Head
                             local rightArm = LocalPlayer.Character:FindFirstChild("Right Arm") or LocalPlayer.Character:FindFirstChild("RightHand")
 
-                            -- Check if rightArm exists
                             if rightArm and head then
-                                -- Teleport the head to the right arm
-                                head.CFrame = rightArm.CFrame * CFrame.new(1.5, 0, 0)  -- Adjust position as needed
-                                head.Size = Vector3.new(0.5, 0.5, 0.5)  -- Make head smaller
+                                head.CFrame = rightArm.CFrame * CFrame.new(1.5, 0, 0)
+                                head.Size = Vector3.new(0.5, 0.5, 0.5)
                             end
                         end
                     end
                 end
             end)
         else
-            -- Stop the Auto Kill loop
             if killLoop then
                 killLoop:Disconnect()
-                killLoop = nil -- Clear reference
+                killLoop = nil
             end
-            
-            -- Reset other players' head size
             for _, player in pairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-                    player.Character.Head.Size = Vector3.new(1, 1, 1) -- Reset head size to normal
+                    player.Character.Head.Size = Vector3.new(1, 1, 1)
                 end
             end
         end
@@ -203,54 +160,48 @@ Tab:AddToggle({
 })
 
 -- Add Target Section
-Tab:AddSection({
-    Name = "Target"
-})
+Tab:AddSection({Name = "Target"})
 
 -- Add Select Player Dropdown
 selectPlayerDropdown = Tab:AddDropdown({
     Name = "Select Player",
     Default = {},
-    Multi = false,  -- Single selection
+    Multi = false,
     Options = {},
     Callback = function(selected)
-        selectedPlayer = selected[1]  -- Update the selected player (single selection)
+        selectedPlayer = selected[1]
     end
 })
 
--- Initialize the select player dropdown with current players
-updateSelectPlayerDropdown()
-
--- Update the select player dropdown whenever players join or leave
-Players.PlayerAdded:Connect(function()
-    updateSelectPlayerDropdown()
-end)
-Players.PlayerRemoving:Connect(function()
-    updateSelectPlayerDropdown()
-end)
-
--- Add "Kill Target" Toggle
+-- Add Kill Target Toggle
 Tab:AddToggle({
     Name = "Kill Target",
     Default = false,
     Callback = function(Value)
-        if Value then
-            -- Check if a player is selected
-            if selectedPlayer then
-                local playerToKill = Players:FindFirstChild(selectedPlayer)
-                if playerToKill and playerToKill.Character and playerToKill.Character:FindFirstChild("Head") then
-                    local head = playerToKill.Character.Head
-                    local rightHand = LocalPlayer.Character:FindFirstChild("Right Arm") or LocalPlayer.Character:FindFirstChild("RightHand")
+        if Value and selectedPlayer then
+            local playerToKill = Players:FindFirstChild(selectedPlayer)
+            if playerToKill and playerToKill.Character and playerToKill.Character:FindFirstChild("Head") then
+                local head = playerToKill.Character.Head
+                local rightHand = LocalPlayer.Character:FindFirstChild("Right Arm") or LocalPlayer.Character:FindFirstChild("RightHand")
 
-                    -- Check if rightHand exists
-                    if rightHand and head then
-                        -- Teleport the head to the right hand
-                        head.CFrame = rightHand.CFrame * CFrame.new(0, 0, 0)  -- Adjust position as needed
-                    end
+                if rightHand and head then
+                    head.CFrame = rightHand.CFrame
                 end
             end
         end
     end
 })
 
+-- Player update events
+Players.PlayerAdded:Connect(function()
+    updateDropdown(whitelistDropdown, true)
+    updateDropdown(selectPlayerDropdown, true)
+end)
+Players.PlayerRemoving:Connect(function()
+    updateDropdown(whitelistDropdown, true)
+    updateDropdown(selectPlayerDropdown, true)
+end)
 
+-- Initialize dropdowns with players excluding LocalPlayer
+updateDropdown(whitelistDropdown, true)
+updateDropdown(selectPlayerDropdown, true)
