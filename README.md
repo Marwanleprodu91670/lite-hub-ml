@@ -16,102 +16,78 @@ local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
-local punchLoop
-local equipLoop
-local animationSpeedLoop
-local killLoop
+local punchLoop, equipLoop, animationSpeedLoop, killLoop
 local whitelistedPlayers = {}
-local whitelistDropdown
-local selectPlayerDropdown
-local selectedPlayer = nil  -- Store the selected player for killing
+local selectedPlayer = nil
 
--- Function to update whitelist dropdown options
-local function updateWhitelistDropdown()
-    local options = {}
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            table.insert(options, player.Name)
-        end
-    end
-    whitelistDropdown:Refresh(options, true)
+-- Function to update dropdown options
+local function updateDropdown(dropdown, options)
+    dropdown:Refresh(options, true)
 end
 
--- Function to update player dropdown options for auto kill
-local function updateSelectPlayerDropdown()
+-- Function to get all player names except LocalPlayer
+local function getPlayerNames()
     local options = {}
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             table.insert(options, player.Name)
         end
     end
-    selectPlayerDropdown:Refresh(options, true)
+    return options
 end
 
 -- Add Punching Section
-Tab:AddSection({
-    Name = "Punching"
-})
+Tab:AddSection({Name = "Punching"})
 
--- Add Auto Punch Toggle to use the existing Punch tool infinitely
+-- Add Auto Punch Toggle
 Tab:AddToggle({
     Name = "Auto Punch",
     Default = false,
-    Callback = function(Value)
-        if Value then
-            -- Equip tool if not already equipped
+    Callback = function(isEnabled)
+        if isEnabled then
             local punchTool = Backpack:FindFirstChild("Punch") or Character:FindFirstChild("Punch")
             if punchTool and punchTool.Parent ~= Character then
                 LocalPlayer.Character.Humanoid:EquipTool(punchTool)
             end
-            
-            -- Activate Punch infinitely every 0.1 seconds
+
+            -- Activate Punch infinitely
             punchLoop = RunService.Heartbeat:Connect(function()
-                local punchTool = Character:FindFirstChild("Punch")
-                if punchTool and punchTool.Parent == Character then
-                    punchTool:Activate() -- Activate the Punch tool
+                if Character:FindFirstChild("Punch") then
+                    Character.Punch:Activate()
                 end
-                wait(0.1) -- Wait for 0.1 seconds between each punch
+                wait(0.1)
             end)
         else
-            -- Stop the punch loop when the toggle is off
             if punchLoop then
                 punchLoop:Disconnect()
             end
-            
-            -- Deactivate the punch tool if it exists
-            local punchTool = Character:FindFirstChild("Punch")
-            if punchTool then
-                punchTool:Deactivate()
+            if Character:FindFirstChild("Punch") then
+                Character.Punch:Deactivate()
             end
         end
     end
 })
 
--- Add Fast Auto Punch Toggle to speed up the punch animation
+-- Add Fast Auto Punch Toggle
 Tab:AddToggle({
     Name = "Fast Auto Punch",
     Default = false,
-    Callback = function(Value)
-        if Value then
-            -- Speed up the punch animation
+    Callback = function(isEnabled)
+        if isEnabled then
             animationSpeedLoop = RunService.Heartbeat:Connect(function()
-                local punchTool = Character:FindFirstChild("Punch")
-                if punchTool then
-                    for _, animTrack in pairs(LocalPlayer.Character.Humanoid:GetPlayingAnimationTracks()) do
-                        if animTrack.Name == "PunchAnimation" then  -- Replace with the correct animation name
-                            animTrack:AdjustSpeed(2)  -- Increase the speed to 2x (or adjust as needed)
-                        end
+                for _, animTrack in pairs(LocalPlayer.Character.Humanoid:GetPlayingAnimationTracks()) do
+                    if animTrack.Name == "PunchAnimation" then
+                        animTrack:AdjustSpeed(2)
                     end
                 end
             end)
         else
-            -- Reset the animation speed when the toggle is off
             if animationSpeedLoop then
                 animationSpeedLoop:Disconnect()
             end
             for _, animTrack in pairs(LocalPlayer.Character.Humanoid:GetPlayingAnimationTracks()) do
-                if animTrack.Name == "PunchAnimation" then  -- Replace with the correct animation name
-                    animTrack:AdjustSpeed(1)  -- Reset speed to normal
+                if animTrack.Name == "PunchAnimation" then
+                    animTrack:AdjustSpeed(1)
                 end
             end
         end
@@ -119,68 +95,51 @@ Tab:AddToggle({
 })
 
 -- Add Killing Section
-Tab:AddSection({
-    Name = "Killing"
-})
+Tab:AddSection({Name = "Killing"})
 
 -- Add Whitelist Dropdown
-whitelistDropdown = Tab:AddDropdown({
+local whitelistDropdown = Tab:AddDropdown({
     Name = "Whitelist",
     Default = {},
-    Multi = true,  -- Allow multiple selections
-    Options = {},
+    Multi = true,
+    Options = getPlayerNames(),
     Callback = function(selected)
-        whitelistedPlayers = selected  -- Update the list of whitelisted players
+        whitelistedPlayers = selected
     end
 })
 
--- Initialize the whitelist dropdown with current players
-updateWhitelistDropdown()
-
 -- Update dropdown when players join or leave
-Players.PlayerAdded:Connect(function()
-    updateWhitelistDropdown()
-    updateSelectPlayerDropdown()
-end)
-Players.PlayerRemoving:Connect(function()
-    updateWhitelistDropdown()
-    updateSelectPlayerDropdown()
-end)
+Players.PlayerAdded:Connect(function() updateDropdown(whitelistDropdown, getPlayerNames()) end)
+Players.PlayerRemoving:Connect(function() updateDropdown(whitelistDropdown, getPlayerNames()) end)
 
--- Add Auto Kill Toggle with Whitelist Check
+-- Add Auto Kill Toggle
 Tab:AddToggle({
     Name = "Auto Kill",
     Default = false,
-    Callback = function(Value)
-        if Value then
-            -- Start Auto Kill loop
+    Callback = function(isEnabled)
+        if isEnabled then
             killLoop = RunService.Heartbeat:Connect(function()
                 for _, player in pairs(Players:GetPlayers()) do
                     if player ~= LocalPlayer and not table.find(whitelistedPlayers, player.Name) then
                         if player.Character and player.Character:FindFirstChild("Head") then
                             local head = player.Character.Head
-                            local rightArm = LocalPlayer.Character:FindFirstChild("Right Arm") or LocalPlayer.Character:FindFirstChild("RightHand")
-
-                            -- Check if rightArm exists
-                            if rightArm and head then
-                                -- Teleport the head to the right arm
-                                head.CFrame = rightArm.CFrame * CFrame.new(1.5, 0, 0)  -- Adjust position as needed
-                                head.Size = Vector3.new(0.5, 0.5, 0.5)  -- Make head smaller
+                            local rightArm = Character:FindFirstChild("Right Arm") or Character:FindFirstChild("RightHand")
+                            if rightArm then
+                                head.CFrame = rightArm.CFrame * CFrame.new(1.5, 0, 0)
+                                head.Size = Vector3.new(0.5, 0.5, 0.5)
                             end
                         end
                     end
                 end
             end)
         else
-            -- Stop the Auto Kill loop
             if killLoop then
                 killLoop:Disconnect()
             end
-            
             -- Reset other players' head size
             for _, player in pairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-                    player.Character.Head.Size = Vector3.new(1, 1, 1) -- Reset head size to normal
+                    player.Character.Head.Size = Vector3.new(1, 1, 1)
                 end
             end
         end
@@ -188,50 +147,35 @@ Tab:AddToggle({
 })
 
 -- Add Target Section
-Tab:AddSection({
-    Name = "Target"
-})
+Tab:AddSection({Name = "Target"})
 
 -- Add Select Player Dropdown
-selectPlayerDropdown = Tab:AddDropdown({
+local selectPlayerDropdown = Tab:AddDropdown({
     Name = "Select Player",
     Default = {},
-    Multi = false,  -- Single selection
-    Options = {},
+    Multi = false,
+    Options = getPlayerNames(),
     Callback = function(selected)
-        selectedPlayer = selected[1]  -- Update the selected player (single selection)
+        selectedPlayer = selected[1]
     end
 })
 
--- Initialize the select player dropdown with current players
-updateSelectPlayerDropdown()
-
 -- Update the select player dropdown whenever players join or leave
-Players.PlayerAdded:Connect(function()
-    updateSelectPlayerDropdown()
-end)
-Players.PlayerRemoving:Connect(function()
-    updateSelectPlayerDropdown()
-end)
+Players.PlayerAdded:Connect(function() updateDropdown(selectPlayerDropdown, getPlayerNames()) end)
+Players.PlayerRemoving:Connect(function() updateDropdown(selectPlayerDropdown, getPlayerNames()) end)
 
 -- Add "Kill Target" Toggle
 Tab:AddToggle({
     Name = "Kill Target",
     Default = false,
-    Callback = function(Value)
-        if Value then
-            -- Check if a player is selected
-            if selectedPlayer then
-                local playerToKill = Players:FindFirstChild(selectedPlayer)
-                if playerToKill and playerToKill.Character and playerToKill.Character:FindFirstChild("Head") then
-                    local head = playerToKill.Character.Head
-                    local rightHand = LocalPlayer.Character:FindFirstChild("Right Arm") or LocalPlayer.Character:FindFirstChild("RightHand")
-
-                    -- Check if rightHand exists
-                    if rightHand and head then
-                        -- Teleport the head to the right hand
-                        head.CFrame = rightHand.CFrame * CFrame.new(0, 0, 0)  -- Adjust position as needed
-                    end
+    Callback = function(isEnabled)
+        if isEnabled and selectedPlayer then
+            local playerToKill = Players:FindFirstChild(selectedPlayer)
+            if playerToKill and playerToKill.Character and playerToKill.Character:FindFirstChild("Head") then
+                local head = playerToKill.Character.Head
+                local rightHand = Character:FindFirstChild("Right Arm") or Character:FindFirstChild("RightHand")
+                if rightHand then
+                    head.CFrame = rightHand.CFrame
                 end
             end
         end
@@ -239,10 +183,7 @@ Tab:AddToggle({
 })
 
 -- Add an Empty Section
-Tab:AddSection({
-    Name = "Empty Section"
-    -- No content added in this section
-})
+Tab:AddSection({Name = "Empty Section"})
 
 -- Create the Spy Tab
 local SpyTab = Window:MakeTab({
@@ -255,47 +196,33 @@ local SpyTab = Window:MakeTab({
 local selectPlayerStatsDropdown = SpyTab:AddDropdown({
     Name = "Select Player Stats",
     Default = {},
-    Multi = false,  -- Single selection
-    Options = {},
+    Multi = false,
+    Options = getPlayerNames(),
     Callback = function(selected)
-        selectedPlayerForStats = selected[1]  -- Update the selected player for stats
+        selectedPlayerForStats = selected[1]
     end
 })
 
--- Initialize the selected player for stats
 local selectedPlayerForStats = nil
 
--- Function to update Select Player Stats dropdown options
-local function updateSelectPlayerStatsDropdown()
-    local options = {}
-    for _, player in pairs(Players:GetPlayers()) do
-        table.insert(options, player.Name)
-    end
-    selectPlayerStatsDropdown:Refresh(options, true)
-end
-
 -- Add Durability Section
-local durabilitySection = SpyTab:AddSection({
-    Name = "Durability:"
-})
-
--- Create a label to display durability
-local durabilityLabel = durabilitySection:AddLabel("Durability: --") -- Default label text
+local durabilitySection = SpyTab:AddSection({Name = "Durability:"})
+local durabilityLabel = durabilitySection:AddLabel("Durability: --")
 
 -- Function to update durability of the selected player
 local function updateDurability()
     while true do
-        wait(1) -- Update every second
+        wait(1)
         if selectedPlayerForStats then
             local playerToTrack = Players:FindFirstChild(selectedPlayerForStats)
-            if playerToTrack and playerToTrack:FindFirstChild("Durability") then -- Ensure the player has a Durability value
-                local durabilityValue = playerToTrack.Durability.Value -- Adjust this according to your game's durability implementation
-                durabilityLabel:SetText("Durability: " .. durabilityValue) -- Update the label with the durability value
+            if playerToTrack and playerToTrack:FindFirstChild("Durability") then
+                local durabilityValue = playerToTrack.Durability.Value
+                durabilityLabel:SetText("Durability: " .. durabilityValue)
             else
-                durabilityLabel:SetText("Durability: --") -- Reset if player not found or no durability
+                durabilityLabel:SetText("Durability: --")
             end
         else
-            durabilityLabel:SetText("Durability: --") -- Reset if no player selected
+            durabilityLabel:SetText("Durability: --")
         end
     end
 end
@@ -304,20 +231,14 @@ end
 spawn(updateDurability)
 
 -- Initialize the select player stats dropdown with current players
-updateSelectPlayerStatsDropdown()
+updateDropdown(selectPlayerStatsDropdown, getPlayerNames())
 
 -- Update the select player stats dropdown whenever players join or leave
-Players.PlayerAdded:Connect(function()
-    updateSelectPlayerStatsDropdown()
-end)
-Players.PlayerRemoving:Connect(function()
-    updateSelectPlayerStatsDropdown()
-end)
+Players.PlayerAdded:Connect(function() updateDropdown(selectPlayerStatsDropdown, getPlayerNames()) end)
+Players.PlayerRemoving:Connect(function() updateDropdown(selectPlayerStatsDropdown, getPlayerNames()) end)
 
 -- Add an Empty Section
-SpyTab:AddSection({
-    Name = "Another Empty Section"
-})
+SpyTab:AddSection({Name = "Another Empty Section"})
 
 -- You can add more features and functionalities as needed
 
