@@ -594,6 +594,11 @@ local Dropdown = Tab:AddDropdown({
 	end
 })
 
+local Section = StatsTab:AddSection({
+	Name = ""
+})
+
+
 -- Sections
 local SectionStrength = Tab:AddSection({ Name = "" })
 local SectionDurability = Tab:AddSection({ Name = "" })
