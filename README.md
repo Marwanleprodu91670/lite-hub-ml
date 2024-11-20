@@ -584,6 +584,16 @@ local Tab = Window:MakeTab({
 	PremiumOnly = false
 })
 
+-- Add Dropdown before the Sections
+local Dropdown = Tab:AddDropdown({
+	Name = "Select Player",
+	Default = "",
+	Options = {}, -- Will be updated dynamically
+	Callback = function(selectedOption)
+		SelectedPlayer = game:GetService("Players"):FindFirstChild(selectedOption)
+	end
+})
+
 -- Sections
 local SectionStrength = Tab:AddSection({ Name = "" })
 local SectionDurability = Tab:AddSection({ Name = "" })
@@ -606,16 +616,6 @@ local function updateDropdown(dropdown)
 	dropdown:ClearOptions()
 	dropdown:AddOptions(playerNames)
 end
-
--- Add Dropdown
-local Dropdown = Tab:AddDropdown({
-	Name = "Select Player",
-	Default = "",
-	Options = {}, -- Will be updated dynamically
-	Callback = function(selectedOption)
-		SelectedPlayer = Players:FindFirstChild(selectedOption)
-	end
-})
 
 -- Update dropdown every second
 task.spawn(function()
@@ -672,6 +672,7 @@ end
 
 -- Start updating sections
 task.spawn(updateSections)
+
 
 
 
