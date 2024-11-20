@@ -578,105 +578,133 @@ TeleportTab:AddToggle({
 })
 
 -- Stats Tab
+-- Stats Tab
 local Tab = Window:MakeTab({
 	Name = "Stats",
 	Icon = "rbxassetid://4483345998",
 	PremiumOnly = false
 })
 
--- Add Dropdown before the Sections
+-- Variables
+local Players = game:GetService("Players")
+local SelectedPlayer = nil
+
+-- Sections
+local SectionStrength = Tab:AddSection({ Name = "Strength" })
+local SectionDurability = Tab:AddSection({ Name = "Durability" })
+local SectionAgility = Tab:AddSection({ Name = "Agility" })
+local SectionPet1 = Tab:AddSection({ Name = "Pet 1" })
+local SectionPet2 = Tab:AddSection({ Name = "Pet 2" })
+local SectionPet3 = Tab:AddSection({ Name = "Pet 3" })
+local SectionPet4 = Tab:AddSection({ Name = "Pet 4" })
+
+-- Add Dropdown for selecting a player
 local Dropdown = Tab:AddDropdown({
 	Name = "Select Player",
 	Default = "",
 	Options = {}, -- Will be updated dynamically
 	Callback = function(selectedOption)
-		SelectedPlayer = game:GetService("Players"):FindFirstChild(selectedOption)
+		SelectedPlayer = Players:FindFirstChild(selectedOption)
+		if SelectedPlayer then
+			updateSections()  -- Update sections when a player is selected
+		end
 	end
 })
 
-local Section = StatsTab:AddSection({
-	Name = ""
-})
-
-
--- Sections
-local SectionStrength = Tab:AddSection({ Name = "" })
-local SectionDurability = Tab:AddSection({ Name = "" })
-local SectionAgility = Tab:AddSection({ Name = "" })
-local SectionPet1 = Tab:AddSection({ Name = "" })
-local SectionPet2 = Tab:AddSection({ Name = "" })
-local SectionPet3 = Tab:AddSection({ Name = "" })
-local SectionPet4 = Tab:AddSection({ Name = "" })
-
--- Variables
-local Players = game:GetService("Players")
-local SelectedPlayer = nil
-
--- Helper function to update dropdown options
-local function updateDropdown(dropdown)
+-- Function to update the dropdown with the list of players
+local function updateDropdown()
 	local playerNames = {}
 	for _, player in ipairs(Players:GetPlayers()) do
 		table.insert(playerNames, player.Name)
 	end
-	dropdown:ClearOptions()
-	dropdown:AddOptions(playerNames)
+	Dropdown:ClearOptions()  -- Clear old options
+	Dropdown:AddOptions(playerNames)  -- Add new player options
 end
 
--- Update dropdown every second
+-- Function to track and update stats and pets for the selected player
+local function updateSections()
+	if SelectedPlayer then
+		-- Update Strength Section
+		local strengthStat = SelectedPlayer:FindFirstChild("Strength")
+		if strengthStat then
+			SectionStrength:SetName("Strength: " .. strengthStat.Value)
+		else
+			SectionStrength:SetName("Strength: Not Found")
+		end
+
+		-- Update Durability Section
+		local durabilityStat = SelectedPlayer:FindFirstChild("Durability")
+		if durabilityStat then
+			SectionDurability:SetName("Durability: " .. durabilityStat.Value)
+		else
+			SectionDurability:SetName("Durability: Not Found")
+		end
+
+		-- Update Agility Section
+		local agilityStat = SelectedPlayer:FindFirstChild("Agility")
+		if agilityStat then
+			SectionAgility:SetName("Agility: " .. agilityStat.Value)
+		else
+			SectionAgility:SetName("Agility: Not Found")
+		end
+
+		-- Update Pet1 Section
+		local pet1 = SelectedPlayer:FindFirstChild("pet1")
+		if pet1 and pet1.Value then
+			SectionPet1:SetName("Pet 1: " .. pet1.Value.Name)
+		else
+			SectionPet1:SetName("Pet 1: Not Found")
+		end
+
+		-- Update Pet2 Section
+		local pet2 = SelectedPlayer:FindFirstChild("pet2")
+		if pet2 and pet2.Value then
+			SectionPet2:SetName("Pet 2: " .. pet2.Value.Name)
+		else
+			SectionPet2:SetName("Pet 2: Not Found")
+		end
+
+		-- Update Pet3 Section
+		local pet3 = SelectedPlayer:FindFirstChild("pet3")
+		if pet3 and pet3.Value then
+			SectionPet3:SetName("Pet 3: " .. pet3.Value.Name)
+		else
+			SectionPet3:SetName("Pet 3: Not Found")
+		end
+
+		-- Update Pet4 Section
+		local pet4 = SelectedPlayer:FindFirstChild("pet4")
+		if pet4 and pet4.Value then
+			SectionPet4:SetName("Pet 4: " .. pet4.Value.Name)
+		else
+			SectionPet4:SetName("Pet 4: Not Found")
+		end
+	else
+		-- Reset Sections if no player is selected
+		SectionStrength:SetName("Strength: Not Found")
+		SectionDurability:SetName("Durability: Not Found")
+		SectionAgility:SetName("Agility: Not Found")
+		SectionPet1:SetName("Pet 1: Not Found")
+		SectionPet2:SetName("Pet 2: Not Found")
+		SectionPet3:SetName("Pet 3: Not Found")
+		SectionPet4:SetName("Pet 4: Not Found")
+	end
+end
+
+-- Update the dropdown options every second when players join or leave
 task.spawn(function()
 	while true do
-		updateDropdown(Dropdown)
+		updateDropdown()  -- Refresh the player list in the dropdown
 		task.wait(1)
 	end
 end)
 
--- Function to track and update sections
-local function updateSections()
-	while true do
-		if SelectedPlayer then
-			-- Update Strength Section
-			local strengthStat = SelectedPlayer:FindFirstChild("Strength")
-			SectionStrength:SetName(strengthStat and ("Strength: " .. strengthStat.Value) or "Strength: Not Found")
-
-			-- Update Durability Section
-			local durabilityStat = SelectedPlayer:FindFirstChild("Durability")
-			SectionDurability:SetName(durabilityStat and ("Durability: " .. durabilityStat.Value) or "Durability: Not Found")
-
-			-- Update Agility Section
-			local agilityStat = SelectedPlayer:FindFirstChild("Agility")
-			SectionAgility:SetName(agilityStat and ("Agility: " .. agilityStat.Value) or "Agility: Not Found")
-
-			-- Update Pet1 Section
-			local pet1 = SelectedPlayer:FindFirstChild("pet1")
-			SectionPet1:SetName(pet1 and ("Pet1: " .. pet1.Value.Name) or "Pet1: Not Found")
-
-			-- Update Pet2 Section
-			local pet2 = SelectedPlayer:FindFirstChild("pet2")
-			SectionPet2:SetName(pet2 and ("Pet2: " .. pet2.Value.Name) or "Pet2: Not Found")
-
-			-- Update Pet3 Section
-			local pet3 = SelectedPlayer:FindFirstChild("pet3")
-			SectionPet3:SetName(pet3 and ("Pet3: " .. pet3.Value.Name) or "Pet3: Not Found")
-
-			-- Update Pet4 Section
-			local pet4 = SelectedPlayer:FindFirstChild("pet4")
-			SectionPet4:SetName(pet4 and ("Pet4: " .. pet4.Value.Name) or "Pet4: Not Found")
-		else
-			-- Reset Sections if no player is selected
-			SectionStrength:SetName("")
-			SectionDurability:SetName("")
-			SectionAgility:SetName("")
-			SectionPet1:SetName("")
-			SectionPet2:SetName("")
-			SectionPet3:SetName("")
-			SectionPet4:SetName("")
-		end
-		task.wait(1)
-	end
-end
-
--- Start updating sections
+-- Call the updateSections function to initialize
 task.spawn(updateSections)
+
+-- Initialize the dropdown with the current list of players
+updateDropdown()
+
 
 
 
